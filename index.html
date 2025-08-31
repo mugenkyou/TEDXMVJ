@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TEDx MVJCE Check-in</title>
     <style>
         * {
@@ -12,311 +12,219 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #FF2B06 0%, #FF6B47 100%);
-            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background: #FF2B06;
             color: white;
-            overflow-x: hidden;
+            padding: 20px;
+            min-height: 100vh;
         }
 
         .container {
             max-width: 400px;
             margin: 0 auto;
-            padding: 20px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
         }
 
         .header {
             text-align: center;
             margin-bottom: 30px;
-            padding: 20px 0;
         }
 
         .logo {
-            font-size: 28px;
+            font-size: 24px;
             font-weight: bold;
             margin-bottom: 5px;
-            letter-spacing: 2px;
         }
 
         .subtitle {
             font-size: 14px;
             opacity: 0.9;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .scanner-section {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
         }
 
         #video {
             width: 100%;
             max-width: 300px;
             height: 300px;
-            border-radius: 20px;
-            object-fit: cover;
+            border-radius: 10px;
             background: rgba(0,0,0,0.3);
-            margin-bottom: 20px;
+            margin: 20px auto;
+            display: block;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 0;
         }
 
         .scan-button {
             background: rgba(255,255,255,0.2);
-            border: 2px solid rgba(255,255,255,0.3);
             color: white;
-            padding: 15px 30px;
-            border-radius: 50px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-            margin-bottom: 20px;
-            min-width: 200px;
-        }
-
-        .scan-button:hover {
-            background: rgba(255,255,255,0.3);
-            transform: translateY(-2px);
+            border: 2px solid white;
         }
 
         .scan-button:disabled {
             opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .result-card {
-            background: rgba(255,255,255,0.15);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 20px;
-            margin: 20px 0;
-            border: 1px solid rgba(255,255,255,0.2);
-            text-align: center;
-            transform: scale(0);
-            transition: all 0.3s ease;
-        }
-
-        .result-card.show {
-            transform: scale(1);
-        }
-
-        .result-card.success {
-            background: rgba(76, 175, 80, 0.2);
-            border-color: rgba(76, 175, 80, 0.5);
-        }
-
-        .result-card.error {
-            background: rgba(244, 67, 54, 0.2);
-            border-color: rgba(244, 67, 54, 0.5);
-        }
-
-        .result-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-
-        .result-message {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
-        .result-details {
-            font-size: 14px;
-            opacity: 0.8;
         }
 
         .manual-input {
             margin-top: 20px;
             padding: 20px;
             background: rgba(255,255,255,0.1);
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
+            border-radius: 10px;
         }
 
-        .manual-input input {
+        input {
             width: 100%;
             padding: 15px;
             border: none;
-            border-radius: 10px;
+            border-radius: 5px;
             font-size: 16px;
-            background: rgba(255,255,255,0.9);
             margin-bottom: 10px;
         }
 
-        .manual-input button {
-            width: 100%;
-            padding: 15px;
-            background: rgba(0,0,0,0.2);
-            color: white;
-            border: 2px solid rgba(255,255,255,0.3);
+        .result {
+            margin: 20px 0;
+            padding: 20px;
             border-radius: 10px;
-            font-size: 16px;
-            cursor: pointer;
+            text-align: center;
+            display: none;
+        }
+
+        .result.success {
+            background: rgba(76, 175, 80, 0.2);
+            border: 2px solid #4CAF50;
+        }
+
+        .result.error {
+            background: rgba(244, 67, 54, 0.2);
+            border: 2px solid #f44336;
+        }
+
+        .result.show {
+            display: block;
         }
 
         .stats {
             position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.3);
-            padding: 10px 15px;
-            border-radius: 20px;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
             font-size: 12px;
-            backdrop-filter: blur(10px);
         }
 
         .loading {
-            display: none;
             text-align: center;
             margin: 20px 0;
+            display: none;
         }
 
         .loading.show {
             display: block;
         }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255,255,255,0.3);
-            border-left: 4px solid white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .toggle-manual {
-            background: none;
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-top: 10px;
-        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="stats">
-            <div>✅ <span id="successCount">0</span> | ❌ <span id="errorCount">0</span></div>
-        </div>
+    <div class="stats">
+        ✅ <span id="successCount">0</span> | ❌ <span id="errorCount">0</span>
+    </div>
 
+    <div class="container">
         <div class="header">
             <div class="logo">TEDx MVJCE</div>
             <div class="subtitle">Event Check-in</div>
         </div>
 
-        <div class="scanner-section">
-            <video id="video" autoplay muted playsinline></video>
-            <button id="scanButton" class="scan-button">Start Scanning</button>
-            <button id="toggleManual" class="toggle-manual" onclick="toggleManual()">Manual Entry</button>
-            
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <div>Processing ticket...</div>
-            </div>
+        <video id="video" autoplay muted playsinline></video>
+        <button id="scanButton" class="scan-button" disabled>Initializing Camera...</button>
+        
+        <div class="loading" id="loading">
+            Processing ticket...
+        </div>
 
-            <div id="resultCard" class="result-card">
-                <div id="resultIcon" class="result-icon"></div>
-                <div id="resultMessage" class="result-message"></div>
-                <div id="resultDetails" class="result-details"></div>
-            </div>
+        <div id="result" class="result">
+            <div id="resultMessage"></div>
+            <div id="resultDetails"></div>
+        </div>
 
-            <div id="manualInput" class="manual-input" style="display: none;">
-                <input type="text" id="ticketInput" placeholder="Enter Ticket ID (e.g., TED001)" />
-                <button onclick="checkTicketManually()">Check Ticket</button>
-                <button onclick="testWebhook()" style="margin-top: 10px; background: rgba(33, 150, 243, 0.3);">Test Webhook</button>
-            </div>
+        <div class="manual-input">
+            <input type="text" id="ticketInput" placeholder="Enter Ticket ID (e.g., TED001)" />
+            <button onclick="checkTicketManually()" style="background: #4CAF50; color: white;">Check Ticket</button>
+            <button onclick="toggleCamera()" style="background: #2196F3; color: white;">Toggle Camera</button>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qr-scanner/1.4.2/qr-scanner.umd.min.js"></script>
     <script>
-        // Configuration - UPDATE THESE VALUES
-        const WEBHOOK_URL = 'http://localhost:5678/webhook-test/checkin'; // n8n webhook URL
-        const STAFF_PASSWORD = 'tedx2024'; // Simple password protection
-
-        // Statistics
+        // CONFIGURATION - UPDATE THESE VALUES
+        const WEBHOOK_URL = 'YOUR_N8N_WEBHOOK_URL_HERE'; // Replace with your actual n8n webhook URL
+        
+        // State
         let successCount = 0;
         let errorCount = 0;
+        let qrScanner = null;
+        let isScanning = false;
+        let cameraEnabled = true;
 
         // DOM Elements
         const video = document.getElementById('video');
         const scanButton = document.getElementById('scanButton');
-        const resultCard = document.getElementById('resultCard');
-        const resultIcon = document.getElementById('resultIcon');
+        const result = document.getElementById('result');
         const resultMessage = document.getElementById('resultMessage');
         const resultDetails = document.getElementById('resultDetails');
         const loading = document.getElementById('loading');
         const ticketInput = document.getElementById('ticketInput');
 
-        let qrScanner = null;
-        let isScanning = false;
+        // Initialize
+        async function init() {
+            if (cameraEnabled) {
+                await initCamera();
+            } else {
+                scanButton.textContent = 'Camera Disabled';
+                scanButton.disabled = true;
+            }
+        }
 
-        // Initialize scanner
-        async function initScanner() {
+        async function initCamera() {
             try {
-                console.log('Initializing camera...');
-                
-                // Request camera permission
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
-                        facingMode: { ideal: 'environment' }, // Prefer back camera
+                        facingMode: { ideal: 'environment' },
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
                     }
                 });
                 
-                console.log('Camera stream obtained:', stream);
                 video.srcObject = stream;
                 
-                // Wait for video to be ready
                 video.onloadedmetadata = () => {
-                    console.log('Video metadata loaded, initializing QR scanner...');
-                    
-                    // Initialize QR scanner
                     qrScanner = new QrScanner(
                         video,
-                        result => {
-                            console.log('QR Code detected:', result.data);
-                            handleQRCode(result.data);
-                        },
+                        result => handleQRCode(result.data),
                         {
                             highlightScanRegion: true,
-                            highlightCodeOutline: true,
-                            preferredCamera: 'environment'
+                            highlightCodeOutline: true
                         }
                     );
 
                     scanButton.textContent = 'Start Scanning';
                     scanButton.disabled = false;
-                    console.log('QR Scanner initialized successfully');
                 };
                 
             } catch (error) {
-                console.error('Camera initialization failed:', error);
-                showResult('error', '❌', 'Camera access denied', 'Please allow camera permissions and refresh');
+                console.error('Camera error:', error);
+                showResult('error', 'Camera access denied', 'Please allow camera permissions');
                 scanButton.textContent = 'Camera Error';
                 scanButton.disabled = true;
             }
         }
 
-        // Handle scan button
+        // Scanner controls
         scanButton.addEventListener('click', () => {
             if (!isScanning) {
                 startScanning();
@@ -327,60 +235,68 @@
 
         function startScanning() {
             if (qrScanner) {
-                console.log('Starting QR scanner...');
                 qrScanner.start();
                 isScanning = true;
                 scanButton.textContent = 'Stop Scanning';
-                scanButton.style.background = 'rgba(244, 67, 54, 0.3)';
+                scanButton.style.background = 'rgba(244, 67, 54, 0.8)';
                 hideResult();
-                console.log('QR scanner started successfully');
-            } else {
-                console.error('QR scanner not initialized');
-                showResult('error', '❌', 'Scanner not ready', 'Please refresh the page');
             }
         }
 
         function stopScanning() {
             if (qrScanner) {
-                console.log('Stopping QR scanner...');
                 qrScanner.stop();
                 isScanning = false;
                 scanButton.textContent = 'Start Scanning';
                 scanButton.style.background = 'rgba(255,255,255,0.2)';
-                console.log('QR scanner stopped');
             }
         }
 
-        // Handle QR code detection
+        function toggleCamera() {
+            cameraEnabled = !cameraEnabled;
+            if (cameraEnabled) {
+                video.style.display = 'block';
+                init();
+            } else {
+                video.style.display = 'none';
+                if (qrScanner) {
+                    qrScanner.destroy();
+                    qrScanner = null;
+                }
+                stopScanning();
+                scanButton.textContent = 'Camera Disabled';
+                scanButton.disabled = true;
+            }
+        }
+
+        // QR Code handling
         async function handleQRCode(ticketId) {
             if (!ticketId) return;
             
-            // Stop scanning temporarily
             stopScanning();
-            
-            // Clean up ticket ID
             ticketId = ticketId.trim().toUpperCase();
-            
-            // Show loading
             showLoading();
-            
-            // Process ticket
             await processTicket(ticketId);
             
-            // Auto-restart scanning after 3 seconds
             setTimeout(() => {
-                if (!isScanning) {
+                if (!isScanning && cameraEnabled) {
                     startScanning();
                 }
             }, 3000);
         }
 
-        // Check-in function that sends POST request to n8n webhook
-        async function checkIn(ticketId) {
+        // Process ticket
+        async function processTicket(ticketId) {
             try {
-                console.log(`Sending check-in request for ticket: ${ticketId}`);
-                console.log(`Webhook URL: ${WEBHOOK_URL}`);
-                
+                // Simulate processing since webhook URL needs to be configured
+                if (WEBHOOK_URL === 'YOUR_N8N_WEBHOOK_URL_HERE') {
+                    hideLoading();
+                    showResult('error', 'Webhook not configured', 'Please update WEBHOOK_URL in the code');
+                    errorCount++;
+                    updateStats();
+                    return;
+                }
+
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
                     headers: {
@@ -389,93 +305,43 @@
                     body: JSON.stringify({ ticket_id: ticketId })
                 });
 
-                console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers);
-                
-                let data = null;
-                const contentType = response.headers.get('content-type');
-                
-                if (contentType && contentType.includes('application/json')) {
+                let data;
+                try {
                     data = await response.json();
-                    console.log('Webhook JSON response:', data);
-                } else {
-                    const textResponse = await response.text();
-                    console.log('Webhook text response:', textResponse);
-                    // Try to parse as JSON anyway, but don't fail if it's not
-                    try {
-                        data = JSON.parse(textResponse);
-                    } catch (e) {
-                        data = { message: textResponse || 'Check-in processed' };
-                    }
+                } catch (e) {
+                    data = { message: await response.text() };
                 }
                 
-                return {
-                    success: response.ok,
-                    data: data,
-                    status: response.status
-                };
-                
-            } catch (error) {
-                console.error('Check-in error:', error);
-                return {
-                    success: false,
-                    error: error.message
-                };
-            }
-        }
-
-        // Process ticket with backend
-        async function processTicket(ticketId) {
-            try {
-                console.log(`Processing ticket: ${ticketId}`);
-                const result = await checkIn(ticketId);
-                
                 hideLoading();
-                console.log('Processing result:', result);
                 
-                // Handle different response scenarios
-                if (result.success) {
-                    // Success case - check for various response formats
-                    let message = 'Check-in successful!';
-                    let isSuccess = true;
-                    
-                    if (result.data) {
-                        if (result.data.status === 'success') {
-                            message = result.data.message || 'Check-in successful!';
-                        } else if (result.data.status === 'error') {
-                            message = result.data.message || 'Check-in failed';
-                            isSuccess = false;
-                        } else if (result.data.message) {
-                            message = result.data.message;
-                        }
-                    }
+                if (response.ok) {
+                    const message = data.message || 'Check-in successful!';
+                    const isSuccess = !data.status || data.status === 'success';
                     
                     if (isSuccess) {
-                        showResult('success', '✅', message, `Ticket: ${ticketId} • ${new Date().toLocaleTimeString()}`);
+                        showResult('success', message, `Ticket: ${ticketId}`);
                         successCount++;
                     } else {
-                        showResult('error', '❌', message, `Ticket: ${ticketId} • ${new Date().toLocaleTimeString()}`);
+                        showResult('error', message, `Ticket: ${ticketId}`);
                         errorCount++;
                     }
                 } else {
-                    // Error case
-                    const errorMessage = result.error || 'Check-in failed';
-                    showResult('error', '❌', errorMessage, `Ticket: ${ticketId} • ${new Date().toLocaleTimeString()}`);
+                    showResult('error', 'Check-in failed', `Error ${response.status}`);
                     errorCount++;
                 }
                 
                 updateStats();
                 
             } catch (error) {
-                console.error('Process ticket error:', error);
+                console.error('Process error:', error);
                 hideLoading();
-                showResult('error', '❌', 'Connection error', 'Please check your internet connection');
+                showResult('error', 'Connection error', 'Check your internet connection');
                 errorCount++;
                 updateStats();
             }
         }
 
-        // Manual ticket entry
+        // Manual entry
         async function checkTicketManually() {
             const ticketId = ticketInput.value.trim().toUpperCase();
             if (!ticketId) {
@@ -483,23 +349,9 @@
                 return;
             }
             
-            console.log(`Manual check-in for ticket: ${ticketId}`);
             showLoading();
             await processTicket(ticketId);
             ticketInput.value = '';
-        }
-
-        // Test webhook connection (for debugging)
-        async function testWebhook() {
-            console.log('Testing webhook connection...');
-            const testResult = await checkIn('TEST123');
-            console.log('Webhook test result:', testResult);
-            
-            if (testResult.success) {
-                showResult('success', '✅', 'Webhook connection successful!', 'Test completed');
-            } else {
-                showResult('error', '❌', 'Webhook connection failed', testResult.error || 'Unknown error');
-            }
         }
 
         // Allow Enter key for manual entry
@@ -509,16 +361,15 @@
             }
         });
 
-        // UI Helper Functions
-        function showResult(type, icon, message, details) {
-            resultCard.className = `result-card show ${type}`;
-            resultIcon.textContent = icon;
+        // UI helpers
+        function showResult(type, message, details) {
+            result.className = `result show ${type}`;
             resultMessage.textContent = message;
             resultDetails.textContent = details;
         }
 
         function hideResult() {
-            resultCard.classList.remove('show');
+            result.classList.remove('show');
         }
 
         function showLoading() {
@@ -535,61 +386,8 @@
             document.getElementById('errorCount').textContent = errorCount;
         }
 
-        function toggleManual() {
-            const manualInput = document.getElementById('manualInput');
-            if (manualInput.style.display === 'none') {
-                manualInput.style.display = 'block';
-                document.getElementById('toggleManual').textContent = 'Hide Manual Entry';
-            } else {
-                manualInput.style.display = 'none';
-                document.getElementById('toggleManual').textContent = 'Manual Entry';
-            }
-        }
-
-        // Simple password protection
-        function checkAccess() {
-            const password = localStorage.getItem('tedx_access');
-            if (password !== STAFF_PASSWORD) {
-                const entered = prompt('Enter staff password:');
-                if (entered === STAFF_PASSWORD) {
-                    localStorage.setItem('tedx_access', STAFF_PASSWORD);
-                } else {
-                    document.body.innerHTML = '<div style="text-align:center;margin-top:50px;color:white;"><h2>Access Denied</h2><p>Contact event organizer</p></div>';
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', () => {
-            if (checkAccess()) {
-                initScanner();
-            }
-        });
-
-        // Prevent zoom on double tap
-        let lastTouchEnd = 0;
-        document.addEventListener('touchend', function (event) {
-            const now = (new Date()).getTime();
-            if (now - lastTouchEnd <= 300) {
-                event.preventDefault();
-            }
-            lastTouchEnd = now;
-        }, false);
-
-        // Keep screen awake
-        if ('wakeLock' in navigator) {
-            let wakeLock = null;
-            const requestWakeLock = async () => {
-                try {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                } catch (err) {
-                    console.log('Wake Lock failed:', err);
-                }
-            };
-            requestWakeLock();
-        }
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
