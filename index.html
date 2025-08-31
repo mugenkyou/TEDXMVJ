@@ -164,7 +164,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qr-scanner/1.4.2/qr-scanner.umd.min.js"></script>
     <script>
         // CONFIGURATION - UPDATE THESE VALUES
-        const WEBHOOK_URL = 'http://localhost:5678/webhook-test/checkin'; // n8n webhook URL
+        const WEBHOOK_URL = 'http://localhost:5678/webhook/checkin'; // n8n webhook URL
         
         // State
         let successCount = 0;
@@ -470,7 +470,8 @@
                 'http://localhost:5678/webhook/checkin-test/',
                 'http://localhost:5678/webhook-test/checkin/',
                 'http://127.0.0.1:5678/webhook-test/checkin',
-                'http://127.0.0.1:5678/webhook/checkin'
+                'http://127.0.0.1:5678/webhook/checkin',
+                'http://localhost:5678/webhook/tedx-mobile-checkin/checkin'
             ];
             
             showLoading();
