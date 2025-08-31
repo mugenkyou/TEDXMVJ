@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Check-in</title>
+<style>
+body { font-family: Arial; text-align: center; padding: 20px; }
+#video { width: 100%; max-width: 400px; border: 1px solid #ccc; }
+#message { font-size: 1.2em; margin-top: 20px; }
+</style>
+</head>
+<body>
+<h1>Scan Ticket QR</h1>
+<video id="video" autoplay></video>
+<div id="message"></div>
+
+<script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
+<script>
+const video = document.getElementById('video');
+const message = document.getElementById('message');
+
+// Access camera
+navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+.then(stream => { video.srcObject = stream; });
+
+const canvas = document.createElement('canvas');
+const context = canvas.getContext('2d');
+
+function scanFrame() {
+  if(video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, canvas.width, canvas.height);
+    if (code) {
+      checkTicket(code.data);
+    }
+  }
+  requestAnimationFrame(scanFrame);
+}
+scanFrame();
+
+function checkTicket(ticketId) {
+  fetch(`https://YOUR_N8N_URL/webhook/checkin?ticket=${encodeURIComponent(ticketId)}`)
+  .then(res => res.json())
+  .then(data => {
+    if(data.status === "success") {
+      message.innerHTML = `✅ ${data.name} — Welcome!`;
+    } else {
+      message.innerHTML = `❌ ${data.message}`;
+    }
+  })
+  .catch(err => { message.innerHTML = `❌ Error: ${err}`; });
+}
+</script>
+</body>
+</html>
