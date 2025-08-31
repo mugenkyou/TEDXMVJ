@@ -155,6 +155,7 @@
         <div class="manual-input">
             <input type="text" id="ticketInput" placeholder="Enter Ticket ID (e.g., TED001)" />
             <button onclick="checkTicketManually()" style="background: #4CAF50; color: white;">Check Ticket</button>
+            <button onclick="testConnection()" style="background: #FF9800; color: white;">Test Connection</button>
             <button onclick="toggleCamera()" style="background: #2196F3; color: white;">Toggle Camera</button>
         </div>
     </div>
@@ -288,7 +289,11 @@
         // Process ticket
         async function processTicket(ticketId) {
             try {
-                // Simulate processing since webhook URL needs to be configured
+                console.log('=== DEBUGGING TICKET PROCESSING ===');
+                console.log('Ticket ID:', ticketId);
+                console.log('Webhook URL:', WEBHOOK_URL);
+                
+                // Check if webhook URL is configured
                 if (WEBHOOK_URL === 'YOUR_N8N_WEBHOOK_URL_HERE') {
                     hideLoading();
                     showResult('error', 'Webhook not configured', 'Please update WEBHOOK_URL in the code');
@@ -297,19 +302,33 @@
                     return;
                 }
 
+                console.log('Sending request to webhook...');
+                const requestBody = { ticket_id: ticketId };
+                console.log('Request body:', requestBody);
+                
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ ticket_id: ticketId })
+                    body: JSON.stringify(requestBody)
                 });
 
+                console.log('Response received!');
+                console.log('Response status:', response.status);
+                console.log('Response statusText:', response.statusText);
+                console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+                
                 let data;
+                const responseText = await response.text();
+                console.log('Raw response text:', responseText);
+                
                 try {
-                    data = await response.json();
+                    data = JSON.parse(responseText);
+                    console.log('Parsed JSON data:', data);
                 } catch (e) {
-                    data = { message: await response.text() };
+                    console.log('Response is not JSON, using as text');
+                    data = { message: responseText || 'No response message' };
                 }
                 
                 hideLoading();
@@ -317,6 +336,8 @@
                 if (response.ok) {
                     const message = data.message || 'Check-in successful!';
                     const isSuccess = !data.status || data.status === 'success';
+                    
+                    console.log('Success check - isSuccess:', isSuccess, 'message:', message);
                     
                     if (isSuccess) {
                         showResult('success', message, `Ticket: ${ticketId}`);
@@ -326,18 +347,45 @@
                         errorCount++;
                     }
                 } else {
-                    showResult('error', 'Check-in failed', `Error ${response.status}`);
+                    console.log('Response not OK - status:', response.status);
+                    showResult('error', 'Check-in failed', `HTTP ${response.status}: ${response.statusText}`);
                     errorCount++;
                 }
                 
                 updateStats();
+                console.log('=== END DEBUGGING ===');
                 
             } catch (error) {
-                console.error('Process error:', error);
+                console.error('=== PROCESS ERROR ===');
+                console.error('Error type:', error.constructor.name);
+                console.error('Error message:', error.message);
+                console.error('Error stack:', error.stack);
+                console.error('Full error object:', error);
+                
                 hideLoading();
-                showResult('error', 'Connection error', 'Check your internet connection');
+                
+                // More specific error messages
+                let errorMessage = 'Unknown error';
+                let errorDetails = 'Check console for details';
+                
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    errorMessage = 'Network error';
+                    errorDetails = 'Cannot reach webhook server. Is n8n running?';
+                } else if (error.name === 'TypeError' && error.message.includes('CORS')) {
+                    errorMessage = 'CORS error';
+                    errorDetails = 'Cross-origin request blocked. Check n8n CORS settings.';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMessage = 'Connection failed';
+                    errorDetails = 'Cannot connect to webhook. Check if n8n is running on localhost:5678';
+                } else {
+                    errorMessage = 'Request failed';
+                    errorDetails = error.message;
+                }
+                
+                showResult('error', errorMessage, errorDetails);
                 errorCount++;
                 updateStats();
+                console.error('=== END ERROR DEBUGGING ===');
             }
         }
 
@@ -352,6 +400,50 @@
             showLoading();
             await processTicket(ticketId);
             ticketInput.value = '';
+        }
+
+        // Test connection function
+        async function testConnection() {
+            console.log('=== TESTING CONNECTION ===');
+            console.log('Webhook URL:', WEBHOOK_URL);
+            
+            showLoading();
+            
+            try {
+                // First, test if we can reach the server
+                console.log('Testing basic connectivity...');
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ticket_id: 'TEST123' })
+                });
+                
+                console.log('Connection test successful!');
+                console.log('Status:', response.status);
+                console.log('Status Text:', response.statusText);
+                
+                const responseText = await response.text();
+                console.log('Response:', responseText);
+                
+                hideLoading();
+                showResult('success', 'Connection successful!', `Status: ${response.status}`);
+                
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                hideLoading();
+                
+                if (error.message.includes('Failed to fetch')) {
+                    showResult('error', 'Cannot connect to n8n', 'Make sure n8n is running on localhost:5678');
+                } else if (error.message.includes('CORS')) {
+                    showResult('error', 'CORS error', 'Check n8n CORS settings');
+                } else {
+                    showResult('error', 'Connection failed', error.message);
+                }
+            }
+            
+            console.log('=== END CONNECTION TEST ===');
         }
 
         // Allow Enter key for manual entry
