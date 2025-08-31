@@ -156,6 +156,7 @@
             <input type="text" id="ticketInput" placeholder="Enter Ticket ID (e.g., TED001)" />
             <button onclick="checkTicketManually()" style="background: #4CAF50; color: white;">Check Ticket</button>
             <button onclick="testConnection()" style="background: #FF9800; color: white;">Test Connection</button>
+            <button onclick="testAlternativeUrls()" style="background: #9C27B0; color: white;">Test Alternative URLs</button>
             <button onclick="toggleCamera()" style="background: #2196F3; color: white;">Toggle Camera</button>
         </div>
     </div>
@@ -410,8 +411,17 @@
             showLoading();
             
             try {
-                // First, test if we can reach the server
-                console.log('Testing basic connectivity...');
+                // Test 1: Try to reach n8n main page first
+                console.log('Test 1: Checking if n8n is running...');
+                try {
+                    const mainResponse = await fetch('http://localhost:5678', { method: 'GET' });
+                    console.log('n8n main page status:', mainResponse.status);
+                } catch (e) {
+                    console.log('Cannot reach n8n main page:', e.message);
+                }
+                
+                // Test 2: Try the webhook endpoint
+                console.log('Test 2: Testing webhook endpoint...');
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
                     headers: {
@@ -434,16 +444,63 @@
                 console.error('Connection test failed:', error);
                 hideLoading();
                 
+                // More detailed error analysis
                 if (error.message.includes('Failed to fetch')) {
-                    showResult('error', 'Cannot connect to n8n', 'Make sure n8n is running on localhost:5678');
+                    showResult('error', 'Cannot connect to n8n', 'Check: 1) n8n running? 2) Webhook exists? 3) CORS enabled?');
                 } else if (error.message.includes('CORS')) {
-                    showResult('error', 'CORS error', 'Check n8n CORS settings');
+                    showResult('error', 'CORS error', 'Enable CORS in n8n settings');
+                } else if (error.message.includes('404')) {
+                    showResult('error', 'Webhook not found', 'Check if webhook-test/checkin exists in n8n');
                 } else {
                     showResult('error', 'Connection failed', error.message);
                 }
             }
             
             console.log('=== END CONNECTION TEST ===');
+        }
+
+        // Test alternative webhook URLs
+        async function testAlternativeUrls() {
+            console.log('=== TESTING ALTERNATIVE WEBHOOK URLs ===');
+            
+            const alternativeUrls = [
+                'http://localhost:5678/webhook/checkin',
+                'http://localhost:5678/webhook-test/checkin',
+                'http://localhost:5678/webhook/checkin-test',
+                'http://localhost:5678/webhook/checkin-test/',
+                'http://localhost:5678/webhook-test/checkin/',
+                'http://127.0.0.1:5678/webhook-test/checkin',
+                'http://127.0.0.1:5678/webhook/checkin'
+            ];
+            
+            showLoading();
+            
+            for (let i = 0; i < alternativeUrls.length; i++) {
+                const url = alternativeUrls[i];
+                console.log(`Testing URL ${i + 1}/${alternativeUrls.length}: ${url}`);
+                
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ ticket_id: 'TEST123' })
+                    });
+                    
+                    console.log(`✅ SUCCESS with ${url} - Status: ${response.status}`);
+                    hideLoading();
+                    showResult('success', 'Found working webhook!', `URL: ${url} (Status: ${response.status})`);
+                    return;
+                    
+                } catch (error) {
+                    console.log(`❌ Failed with ${url}: ${error.message}`);
+                }
+            }
+            
+            hideLoading();
+            showResult('error', 'No working webhook found', 'Check your n8n webhook configuration');
+            console.log('=== END ALTERNATIVE URL TEST ===');
         }
 
         // Allow Enter key for manual entry
