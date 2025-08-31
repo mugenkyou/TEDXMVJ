@@ -247,7 +247,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qr-scanner/1.4.2/qr-scanner.umd.min.js"></script>
     <script>
         // Configuration - UPDATE THESE VALUES
-        const WEBHOOK_URL = 'https://your-n8n-instance.com/webhook/checkin'; // Replace with your webhook URL
+        const WEBHOOK_URL = 'http://localhost:5678/webhook/checkin'; // n8n webhook URL
         const STAFF_PASSWORD = 'tedx2024'; // Simple password protection
 
         // Statistics
@@ -353,9 +353,11 @@
             }, 3000);
         }
 
-        // Process ticket with backend
-        async function processTicket(ticketId) {
+        // Check-in function that sends POST request to n8n webhook
+        async function checkIn(ticketId) {
             try {
+                console.log(`Sending check-in request for ticket: ${ticketId}`);
+                
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
                     headers: {
@@ -365,14 +367,36 @@
                 });
 
                 const data = await response.json();
+                console.log('Webhook response:', data);
+                
+                return {
+                    success: response.ok,
+                    data: data,
+                    status: response.status
+                };
+                
+            } catch (error) {
+                console.error('Check-in error:', error);
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+
+        // Process ticket with backend
+        async function processTicket(ticketId) {
+            try {
+                const result = await checkIn(ticketId);
                 
                 hideLoading();
                 
-                if (data.status === 'success') {
-                    showResult('success', '✅', data.message, `Ticket: ${ticketId} • ${new Date().toLocaleTimeString()}`);
+                if (result.success && result.data && result.data.status === 'success') {
+                    showResult('success', '✅', result.data.message, `Ticket: ${ticketId} • ${new Date().toLocaleTimeString()}`);
                     successCount++;
                 } else {
-                    showResult('error', '❌', data.message, `Ticket: ${ticketId} • ${new Date().toLocaleTimeString()}`);
+                    const errorMessage = result.data?.message || result.error || 'Check-in failed';
+                    showResult('error', '❌', errorMessage, `Ticket: ${ticketId} • ${new Date().toLocaleTimeString()}`);
                     errorCount++;
                 }
                 
