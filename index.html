@@ -1,59 +1,492 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Event Check-in</title>
-<style>
-body { font-family: Arial; text-align: center; padding: 20px; }
-#video { width: 100%; max-width: 400px; border: 1px solid #ccc; }
-#message { font-size: 1.2em; margin-top: 20px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>TEDx MVJCE Check-in</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #FF2B06 0%, #FF6B47 100%);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px 0;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .scanner-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #video {
+            width: 100%;
+            max-width: 300px;
+            height: 300px;
+            border-radius: 20px;
+            object-fit: cover;
+            background: rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+
+        .scan-button {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            margin-bottom: 20px;
+            min-width: 200px;
+        }
+
+        .scan-button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .scan-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-card {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(255,255,255,0.2);
+            text-align: center;
+            transform: scale(0);
+            transition: all 0.3s ease;
+        }
+
+        .result-card.show {
+            transform: scale(1);
+        }
+
+        .result-card.success {
+            background: rgba(76, 175, 80, 0.2);
+            border-color: rgba(76, 175, 80, 0.5);
+        }
+
+        .result-card.error {
+            background: rgba(244, 67, 54, 0.2);
+            border-color: rgba(244, 67, 54, 0.5);
+        }
+
+        .result-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .result-message {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .result-details {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .manual-input {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .manual-input input {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            background: rgba(255,255,255,0.9);
+            margin-bottom: 10px;
+        }
+
+        .manual-input button {
+            width: 100%;
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .stats {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.3);
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-left: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .toggle-manual {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
-<h1>Scan Ticket QR</h1>
-<video id="video" autoplay></video>
-<div id="message"></div>
+    <div class="container">
+        <div class="stats">
+            <div>✅ <span id="successCount">0</span> | ❌ <span id="errorCount">0</span></div>
+        </div>
 
-<script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
-<script>
-const video = document.getElementById('video');
-const message = document.getElementById('message');
+        <div class="header">
+            <div class="logo">TEDx MVJCE</div>
+            <div class="subtitle">Event Check-in</div>
+        </div>
 
-// Access camera
-navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-.then(stream => { video.srcObject = stream; });
+        <div class="scanner-section">
+            <video id="video" autoplay muted playsinline></video>
+            <button id="scanButton" class="scan-button">Start Scanning</button>
+            <button id="toggleManual" class="toggle-manual" onclick="toggleManual()">Manual Entry</button>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>Processing ticket...</div>
+            </div>
 
-const canvas = document.createElement('canvas');
-const context = canvas.getContext('2d');
+            <div id="resultCard" class="result-card">
+                <div id="resultIcon" class="result-icon"></div>
+                <div id="resultMessage" class="result-message"></div>
+                <div id="resultDetails" class="result-details"></div>
+            </div>
 
-function scanFrame() {
-  if(video.readyState === video.HAVE_ENOUGH_DATA) {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, canvas.width, canvas.height);
-    if (code) {
-      checkTicket(code.data);
-    }
-  }
-  requestAnimationFrame(scanFrame);
-}
-scanFrame();
+            <div id="manualInput" class="manual-input" style="display: none;">
+                <input type="text" id="ticketInput" placeholder="Enter Ticket ID (e.g., TED001)" />
+                <button onclick="checkTicketManually()">Check Ticket</button>
+            </div>
+        </div>
+    </div>
 
-function checkTicket(ticketId) {
-  fetch(`https://YOUR_N8N_URL/webhook/checkin?ticket=${encodeURIComponent(ticketId)}`)
-  .then(res => res.json())
-  .then(data => {
-    if(data.status === "success") {
-      message.innerHTML = `✅ ${data.name} — Welcome!`;
-    } else {
-      message.innerHTML = `❌ ${data.message}`;
-    }
-  })
-  .catch(err => { message.innerHTML = `❌ Error: ${err}`; });
-}
-</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qr-scanner/1.4.2/qr-scanner.umd.min.js"></script>
+    <script>
+        // Configuration - UPDATE THESE VALUES
+        const WEBHOOK_URL = 'https://your-n8n-instance.com/webhook/checkin'; // Replace with your webhook URL
+        const STAFF_PASSWORD = 'tedx2024'; // Simple password protection
+
+        // Statistics
+        let successCount = 0;
+        let errorCount = 0;
+
+        // DOM Elements
+        const video = document.getElementById('video');
+        const scanButton = document.getElementById('scanButton');
+        const resultCard = document.getElementById('resultCard');
+        const resultIcon = document.getElementById('resultIcon');
+        const resultMessage = document.getElementById('resultMessage');
+        const resultDetails = document.getElementById('resultDetails');
+        const loading = document.getElementById('loading');
+        const ticketInput = document.getElementById('ticketInput');
+
+        let qrScanner = null;
+        let isScanning = false;
+
+        // Initialize scanner
+        async function initScanner() {
+            try {
+                // Request camera permission
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: { ideal: 'environment' }, // Prefer back camera
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+                
+                video.srcObject = stream;
+                
+                // Initialize QR scanner
+                qrScanner = new QrScanner(
+                    video,
+                    result => handleQRCode(result.data),
+                    {
+                        highlightScanRegion: true,
+                        highlightCodeOutline: true,
+                        preferredCamera: 'environment'
+                    }
+                );
+
+                scanButton.textContent = 'Start Scanning';
+                scanButton.disabled = false;
+                
+            } catch (error) {
+                console.error('Camera initialization failed:', error);
+                showResult('error', '❌', 'Camera access denied', 'Please allow camera permissions and refresh');
+            }
+        }
+
+        // Handle scan button
+        scanButton.addEventListener('click', () => {
+            if (!isScanning) {
+                startScanning();
+            } else {
+                stopScanning();
+            }
+        });
+
+        function startScanning() {
+            if (qrScanner) {
+                qrScanner.start();
+                isScanning = true;
+                scanButton.textContent = 'Stop Scanning';
+                scanButton.style.background = 'rgba(244, 67, 54, 0.3)';
+                hideResult();
+            }
+        }
+
+        function stopScanning() {
+            if (qrScanner) {
+                qrScanner.stop();
+                isScanning = false;
+                scanButton.textContent = 'Start Scanning';
+                scanButton.style.background = 'rgba(255,255,255,0.2)';
+            }
+        }
+
+        // Handle QR code detection
+        async function handleQRCode(ticketId) {
+            if (!ticketId) return;
+            
+            // Stop scanning temporarily
+            stopScanning();
+            
+            // Clean up ticket ID
+            ticketId = ticketId.trim().toUpperCase();
+            
+            // Show loading
+            showLoading();
+            
+            // Process ticket
+            await processTicket(ticketId);
+            
+            // Auto-restart scanning after 3 seconds
+            setTimeout(() => {
+                if (!isScanning) {
+                    startScanning();
+                }
+            }, 3000);
+        }
+
+        // Process ticket with backend
+        async function processTicket(ticketId) {
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ticket_id: ticketId })
+                });
+
+                const data = await response.json();
+                
+                hideLoading();
+                
+                if (data.status === 'success') {
+                    showResult('success', '✅', data.message, `Ticket: ${ticketId} • ${new Date().toLocaleTimeString()}`);
+                    successCount++;
+                } else {
+                    showResult('error', '❌', data.message, `Ticket: ${ticketId} • ${new Date().toLocaleTimeString()}`);
+                    errorCount++;
+                }
+                
+                updateStats();
+                
+            } catch (error) {
+                hideLoading();
+                showResult('error', '❌', 'Connection error', 'Please check your internet connection');
+                errorCount++;
+                updateStats();
+            }
+        }
+
+        // Manual ticket entry
+        async function checkTicketManually() {
+            const ticketId = ticketInput.value.trim().toUpperCase();
+            if (!ticketId) {
+                alert('Please enter a ticket ID');
+                return;
+            }
+            
+            showLoading();
+            await processTicket(ticketId);
+            ticketInput.value = '';
+        }
+
+        // Allow Enter key for manual entry
+        ticketInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                checkTicketManually();
+            }
+        });
+
+        // UI Helper Functions
+        function showResult(type, icon, message, details) {
+            resultCard.className = `result-card show ${type}`;
+            resultIcon.textContent = icon;
+            resultMessage.textContent = message;
+            resultDetails.textContent = details;
+        }
+
+        function hideResult() {
+            resultCard.classList.remove('show');
+        }
+
+        function showLoading() {
+            loading.classList.add('show');
+            hideResult();
+        }
+
+        function hideLoading() {
+            loading.classList.remove('show');
+        }
+
+        function updateStats() {
+            document.getElementById('successCount').textContent = successCount;
+            document.getElementById('errorCount').textContent = errorCount;
+        }
+
+        function toggleManual() {
+            const manualInput = document.getElementById('manualInput');
+            if (manualInput.style.display === 'none') {
+                manualInput.style.display = 'block';
+                document.getElementById('toggleManual').textContent = 'Hide Manual Entry';
+            } else {
+                manualInput.style.display = 'none';
+                document.getElementById('toggleManual').textContent = 'Manual Entry';
+            }
+        }
+
+        // Simple password protection
+        function checkAccess() {
+            const password = localStorage.getItem('tedx_access');
+            if (password !== STAFF_PASSWORD) {
+                const entered = prompt('Enter staff password:');
+                if (entered === STAFF_PASSWORD) {
+                    localStorage.setItem('tedx_access', STAFF_PASSWORD);
+                } else {
+                    document.body.innerHTML = '<div style="text-align:center;margin-top:50px;color:white;"><h2>Access Denied</h2><p>Contact event organizer</p></div>';
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            if (checkAccess()) {
+                initScanner();
+            }
+        });
+
+        // Prevent zoom on double tap
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function (event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+
+        // Keep screen awake
+        if ('wakeLock' in navigator) {
+            let wakeLock = null;
+            const requestWakeLock = async () => {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                } catch (err) {
+                    console.log('Wake Lock failed:', err);
+                }
+            };
+            requestWakeLock();
+        }
+    </script>
 </body>
 </html>
