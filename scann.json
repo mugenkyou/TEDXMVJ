@@ -1,0 +1,392 @@
+{
+    "nodes": [
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "YOUR_GOOGLE_SHEETS_ID_HERE",
+            "mode": "url"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Sheet1",
+            "cachedResultUrl": "YOUR_SHEET_URL_HERE"
+          },
+          "options": {}
+        },
+        "id": "511d3ffa-5c7c-40e3-ba66-4c5310a7a9a3",
+        "name": "Google Sheets - Read All Data",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          2784,
+          1696
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+            "name": "Google Sheets OAuth2 Credential"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Filter rows that don't have 'Sent' status and have valid email\nconst filteredItems = [];\n\nconsole.log(`Processing ${items.length} items from Google Sheets`);\n\nfor (const item of items) {\n  const rowData = item.json;\n  \n  console.log('Row data:', JSON.stringify(rowData, null, 2));\n  \n  // Get the status - check multiple possible column names\n  const emailStatus = (rowData['Status'] || rowData['Email Status'] || '').toString().toLowerCase().trim();\n  \n  // Get email and validate\n  const email = (rowData['Email'] || '').toString().trim();\n  \n  // Get other required fields with proper fallbacks\n  const name = (rowData['Name'] || '').toString().trim();\n  const ticketId = (rowData['Ticket ID'] || '').toString().trim();\n  \n  console.log(`Processing row: Name=${name}, Email=${email}, Status=${emailStatus}, TicketID=${ticketId}`);\n  \n  // Only process if:\n  // 1. Not already sent\n  // 2. Has valid email\n  // 3. Has name\n  // 4. Has ticket ID\n  if (emailStatus !== 'sent' && \n      email && \n      /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) && \n      name && \n      ticketId) {\n    \n    // Calculate row number (items are 0-based, but sheets are 1-based with header)\n    const rowNumber = items.indexOf(item) + 2;\n    \n    const ticketData = {\n      row_number: rowNumber,\n      ticket_id: ticketId,\n      name: name,\n      email: email.toLowerCase(),\n      phone: (rowData['phone'] || rowData['Phone'] || 'Not provided').toString().trim(),\n      event_name: rowData['Event Name'] || 'Your Event Name',\n      event_date: rowData['Event Date'] || 'Event Date',\n      event_location: rowData['Event Location'] || 'Event Location',\n      created_at: new Date().toISOString()\n    };\n    \n    // QR code payload with actual participant data\n    const qrCodeData = `Name: ${ticketData.name} | Email: ${ticketData.email} | Phone: ${ticketData.phone} | Ticket: ${ticketData.ticket_id} | Event: ${ticketData.event_name}`;\n    ticketData.qr_data = qrCodeData;\n    \n    console.log(`Adding to queue: ${ticketData.name} (${ticketData.email})`);\n    filteredItems.push({ json: ticketData });\n  } else {\n    if (emailStatus === 'sent') {\n      console.log(`Skipping ${name || 'Unknown'} - already sent`);\n    } else if (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n      console.log(`Skipping ${name || 'Unknown'} - invalid email: ${email}`);\n    } else if (!name) {\n      console.log(`Skipping - no name provided`);\n    } else if (!ticketId) {\n      console.log(`Skipping ${name} - no ticket ID`);\n    }\n  }\n}\n\nconsole.log(`Found ${filteredItems.length} rows to process for email sending`);\nreturn filteredItems;"
+        },
+        "id": "f425fa2d-1905-42b7-8605-4c51365d615e",
+        "name": "Filter & Process Rows",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2992,
+          1712
+        ]
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "id": "9bf44a60-aef2-4e50-a683-881c5a0d6e39",
+        "name": "Split In Batches",
+        "type": "n8n-nodes-base.splitInBatches",
+        "typeVersion": 3,
+        "position": [
+          3184,
+          1520
+        ]
+      },
+      {
+        "parameters": {
+          "url": "=https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ encodeURIComponent($json.qr_data) }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          3408,
+          1472
+        ],
+        "id": "2e1d3574-9744-4808-a483-a1d8e9136721",
+        "name": "Generate QR Code"
+      },
+      {
+        "parameters": {
+          "jsCode": "const qrCodeBinary = items[0].binary.data;\nconst ticketData = items[0].json;\n\nconsole.log(`Preparing email data for: ${ticketData.name} (${ticketData.email})`);\n\nreturn {\n  json: {\n    ...ticketData,\n    qr_base64: qrCodeBinary.data,\n    qr_mime_type: qrCodeBinary.mimeType\n  }\n};"
+        },
+        "id": "163010bd-8e69-455e-8de8-275e7cce9108",
+        "name": "Prepare Email Data",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3568,
+          1392
+        ]
+      },
+      {
+        "parameters": {
+          "sendTo": "={{ $json.email }}",
+          "subject": "=Your Event Ticket Confirmation - {{ $json.ticket_id }}",
+          "message": "=<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Your Event Ticket</title>\n<style>\n  body {\n    margin: 0;\n    padding: 0;\n    font-family: Arial, Helvetica, sans-serif;\n    background-color: #000000;\n    color: #ffffff;\n  }\n  .container {\n    max-width: 600px;\n    margin: 20px auto;\n    background-color: #111111;\n    border-radius: 12px;\n    padding: 20px;\n  }\n  .logo {\n    text-align: center;\n    font-size: 32px;\n    font-weight: bold;\n    padding: 10px 0;\n    color: #ff2b06;\n  }\n  .subject {\n    text-align: center;\n    font-size: 22px;\n    font-weight: bold;\n    color: #ff2b06;\n    margin: 15px 0;\n  }\n  .section {\n    padding: 15px;\n    font-size: 15px;\n    line-height: 1.6;\n    color: #dddddd;\n  }\n  .highlight-box {\n    padding: 20px;\n    background-color: #1a1a1a;\n    border-radius: 10px;\n    margin: 10px 0;\n    font-size: 15px;\n    color: #ffffff;\n  }\n  .highlight-box strong {\n    color: #ff2b06;\n    font-size: 16px;\n  }\n  .qr-section {\n    text-align: center;\n    padding: 20px;\n    background: #1a1a1a;\n    border-radius: 10px;\n    margin: 20px 0;\n    border: 2px dashed #ff2b06;\n  }\n  .qr-section img {\n    max-width: 180px;\n    border: 2px solid #ff2b06;\n    border-radius: 12px;\n    background: #000;\n    padding: 10px;\n  }\n  a {\n    color: #ff2b06;\n    text-decoration: none;\n  }\n  .cta {\n    text-align: center;\n    padding: 20px;\n  }\n  .cta a {\n    background-color: #ff2b06;\n    color: #ffffff;\n    text-decoration: none;\n    font-size: 16px;\n    padding: 12px 24px;\n    border-radius: 6px;\n    display: inline-block;\n  }\n  .footer {\n    text-align: center;\n    font-size: 13px;\n    color: #888;\n    padding: 15px;\n  }\n</style>\n</head>\n<body>\n  <div class=\"container\">\n    <!-- Logo -->\n    <div class=\"logo\">Your Event Name</div>\n\n    <!-- Subject -->\n    <div class=\"subject\">Your Ticket is Confirmed!</div>\n\n    <!-- Greeting -->\n    <div class=\"section\" style=\"color:#ffffff;\">\n      Hello <strong>{{ $json.name }}</strong>,<br><br>\n      Your event ticket has been successfully confirmed!\n    </div>\n\n    <!-- Event Details -->\n    <div class=\"highlight-box\">\n      <strong>Event Details:</strong><br><br>\n      <strong>Event:</strong> {{ $json.event_name }}<br>\n      <strong>Date:</strong> {{ $json.event_date }}<br>\n      <strong>Location:</strong> {{ $json.event_location }}<br>\n      <strong>Time:</strong> [Event Time Here]<br>\n    </div>\n\n    <!-- Ticket Info -->\n    <div class=\"section\" style=\"color:#ffffff;\">\n      <strong style=\"color:#ff2b06; font-size:16px;\">Your Ticket Information:</strong><br><br>\n      Ticket ID: <span style=\"font-size:18px; font-weight:bold; color:#ff2b06;\">{{ $json.ticket_id }}</span><br><br>\n      Please keep this ticket safe. It's your entry pass to the event.\n    </div>\n\n    <!-- QR Section -->\n    <div class=\"qr-section\">\n      <h3>📱 Show this QR code at entry</h3>\n      <img src=\"data:{{ $json.qr_mime_type }};base64,{{ $json.qr_base64 }}\" alt=\"Ticket QR Code\">\n    </div>\n\n    <!-- Important Notes -->\n    <div class=\"section\">\n      <strong style=\"color:#ff2b06;\">Important Notes:</strong><br>\n      • Please arrive 30 minutes before the event<br>\n      • Keep this email handy for entry<br>\n      • Contact us if you have any questions\n    </div>\n\n    <!-- Contact -->\n    <div class=\"section\">\n      <strong style=\"color:#ff2b06;\">Need Help?</strong><br>\n      Contact us at: <a href=\"mailto:your-email@example.com\">your-email@example.com</a><br>\n      Phone: [Your Phone Number]<br>\n    </div>\n\n    <!-- Closing -->\n    <div class=\"section\" style=\"color:#ffffff;\">\n      See you at the event!<br>\n      <strong>The Event Team</strong>\n    </div>\n\n    <!-- Footer -->\n    <div class=\"footer\">\n      Generated on: {{ $json.created_at }}<br>\n      Thank you for registering!\n    </div>\n  </div>\n</body>\n</html>\n",
+          "options": {}
+        },
+        "id": "587f0ab9-29c5-44fe-bb72-67819bb5f55b",
+        "name": "Send Ticket Email",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2,
+        "position": [
+          3616,
+          1664
+        ],
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "YOUR_GMAIL_CREDENTIAL_ID",
+            "name": "Gmail OAuth2 Credential"
+          }
+        },
+        "continueOnFail": true,
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "documentId": {
+            "__rl": true,
+            "value": "YOUR_GOOGLE_SHEETS_ID_HERE",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Sheet1",
+            "cachedResultUrl": "YOUR_SHEET_URL_HERE"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "Status": "Sent",
+              "Ticket ID": "={{ $('Google Sheets - Read All Data').item.json['Ticket ID'] }}"
+            },
+            "matchingColumns": [
+              "Ticket ID"
+            ],
+            "schema": [
+              {
+                "id": "Ticket ID",
+                "displayName": "Ticket ID",
+                "required": false,
+                "defaultMatch": true,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true
+              },
+              {
+                "id": "Name",
+                "displayName": "Name",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "phone",
+                "displayName": "phone",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "Email",
+                "displayName": "Email",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "Event Name",
+                "displayName": "Event Name",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "Event Date",
+                "displayName": "Event Date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "QR Code (Link/Image)",
+                "displayName": "QR Code (Link/Image)",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              },
+              {
+                "id": "Status",
+                "displayName": "Status",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "id": "1543f94e-aa98-45d5-83c3-f5ea59ad8996",
+        "name": "Update Email Status",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          3792,
+          1728
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+            "name": "Google Sheets OAuth2 Credential"
+          }
+        },
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "jsCode": "// Log success and prepare final output\nconst emailSent = items[0].json.email || 'Unknown';\nconst ticketId = items[0].json.ticket_id || 'Unknown';\nconst participantName = items[0].json.name || 'Unknown';\n\n// Check if email was successfully sent\nif (items[0].error) {\n  console.log(`❌ FAILED: ${participantName} (${emailSent}) - ${items[0].error.message}`);\n  return {\n    json: {\n      success: false,\n      message: 'Email sending failed',\n      participant_name: participantName,\n      ticket_id: ticketId,\n      email: emailSent,\n      error: items[0].error.message,\n      processed_at: new Date().toISOString()\n    }\n  };\n} else {\n  console.log(`✅ SUCCESS: Ticket email sent to: ${participantName} (${emailSent})`);\n  console.log(`   Ticket ID: ${ticketId}`);\n  console.log(`   Status updated in sheet`);\n  \n  return {\n    json: {\n      success: true,\n      message: 'Email sent and status updated successfully',\n      participant_name: participantName,\n      ticket_id: ticketId,\n      email: emailSent,\n      processed_at: new Date().toISOString()\n    }\n  };\n}"
+        },
+        "id": "184d9719-1a9b-4d41-ab2a-2074f729f30d",
+        "name": "Log Results",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3376,
+          1712
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Add a small delay to avoid hitting email rate limits\nconst delayMs = 2000; // 2 seconds between emails\nconst ticketId = items[0].json.ticket_id || 'Unknown';\nconst participantName = items[0].json.name || 'Unknown';\n\nconsole.log(`Waiting ${delayMs/1000} seconds before next email (${participantName} - ${ticketId})...`);\n\nreturn new Promise(resolve => {\n  setTimeout(() => {\n    resolve(items);\n  }, delayMs);\n});"
+        },
+        "id": "e63213a0-5307-467c-a4c3-d4a41bcf622b",
+        "name": "Rate Limit Delay",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3616,
+          1936
+        ]
+      },
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          2544,
+          1728
+        ],
+        "id": "77b2b751-608d-449a-bd04-fb67efe25b0b",
+        "name": "When clicking 'Execute workflow'"
+      }
+    ],
+    "connections": {
+      "Google Sheets - Read All Data": {
+        "main": [
+          [
+            {
+              "node": "Filter & Process Rows",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filter & Process Rows": {
+        "main": [
+          [
+            {
+              "node": "Split In Batches",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Split In Batches": {
+        "main": [
+          [
+            {
+              "node": "Generate QR Code",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Log Results",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Generate QR Code": {
+        "main": [
+          [
+            {
+              "node": "Prepare Email Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Email Data": {
+        "main": [
+          [
+            {
+              "node": "Send Ticket Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Ticket Email": {
+        "main": [
+          [
+            {
+              "node": "Update Email Status",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Update Email Status": {
+        "main": [
+          [
+            {
+              "node": "Log Results",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Log Results": {
+        "main": [
+          [
+            {
+              "node": "Rate Limit Delay",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Rate Limit Delay": {
+        "main": [
+          [
+            {
+              "node": "Split In Batches",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "When clicking 'Execute workflow'": {
+        "main": [
+          [
+            {
+              "node": "Google Sheets - Read All Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "pinData": {},
+    "meta": {
+      "templateCredsSetupCompleted": true,
+      "instanceId": "YOUR_N8N_INSTANCE_ID_HERE"
+    }
+  }
